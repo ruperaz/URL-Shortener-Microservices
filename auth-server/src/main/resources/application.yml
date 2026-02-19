@@ -1,0 +1,37 @@
+server:
+  port: 9000
+spring:
+  application:
+    name: auth-server
+  config:
+    import: vault://
+  cloud:
+    vault:
+      uri: ${VAULT_ADDR:http://vault:8200}
+      authentication: APPROLE
+      app-role:
+        role-id: ${AUTH_SERVER_VAULT_ROLE_ID}
+        secret-id: ${AUTH_SERVER_VAULT_SECRET_ID}
+      kv:
+        backend: secret
+        default-context: auth-server
+  datasource:
+    url: jdbc:postgresql://postgres:5432/url_shortener?currentSchema=${auth.db.schema:auth_schema}
+    username: ${auth.db.username}
+    password: ${auth.db.password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.default_schema: ${auth.db.schema:auth_schema}
+  flyway:
+    enabled: true
+    schemas: ${auth.db.schema:auth_schema}
+    default-schema: ${auth.db.schema:auth_schema}
+management:
+  endpoints.web.exposure.include: health,info
+auth:
+  jwt:
+    private-key-pem: ${auth.keys.private-pem}
+  clients:
+    service-client-secret: ${auth.clients.internal-service-secret}
