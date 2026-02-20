@@ -2,6 +2,7 @@ services:
   vault:
     image: hashicorp/vault:1.18
     ports: ["8200:8200"]
+    user: root
     cap_add: ["IPC_LOCK"]
     command: vault server -config=/vault/config/vault.hcl
     volumes:
