@@ -7,16 +7,103 @@ set -euo pipefail
 # container-internal hostname (http://vault:8200) which is unreachable here.
 # Override VAULT_HOST_ADDR if your Vault is on a non-default address.
 VAULT_ADDR=${VAULT_HOST_ADDR:-http://localhost:8200}
-VAULT_TOKEN=${VAULT_DEV_ROOT_TOKEN_ID:-root}
-export VAULT_ADDR VAULT_TOKEN
+export VAULT_ADDR
 
-wait_for_vault() {
-  until curl -sf "$VAULT_ADDR/v1/sys/health" >/dev/null; do sleep 1; done
-}
+# Path where the init keys (unseal key + root token) are persisted on the host.
+# Kept outside version control — never commit this file.
+VAULT_KEYS_FILE=${VAULT_KEYS_FILE:-.vault-keys}
 
 rand() { openssl rand -base64 24 | tr -d '=+/\n' | cut -c1-24; }
 
+# ---------------------------------------------------------------------------
+# 1. Wait for the Vault process to be reachable (any HTTP response is fine;
+#    501 = not initialised, 503 = sealed, 200 = ready).
+# ---------------------------------------------------------------------------
+wait_for_vault() {
+  echo "Waiting for Vault to be reachable..."
+  until curl -s -o /dev/null "$VAULT_ADDR/v1/sys/health"; do
+    sleep 1
+  done
+  echo "Vault is reachable."
+}
+
+# ---------------------------------------------------------------------------
+# 2. Initialise Vault (first run only).  Uses 1-of-1 Shamir shares to keep
+#    local development simple.  Saves the unseal key and root token to
+#    $VAULT_KEYS_FILE on the host.
+# ---------------------------------------------------------------------------
+init_vault() {
+  local http_code
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" "$VAULT_ADDR/v1/sys/health")
+
+  if [ "$http_code" = "501" ]; then
+    echo "Vault is uninitialised — running vault operator init..."
+    local init_out
+    init_out=$(vault operator init -key-shares=1 -key-threshold=1 -format=json)
+
+    local unseal_key root_token
+    unseal_key=$(printf '%s' "$init_out" | grep -o '"unseal_keys_b64":\["[^"]*"' | grep -o '[^"]*"$' | tr -d '"')
+    root_token=$(printf '%s' "$init_out" | grep -o '"root_token":"[^"]*"' | grep -o '[^"]*"$' | tr -d '"')
+
+    # Persist so we can unseal on every restart
+    cat > "$VAULT_KEYS_FILE" <<KEYS
+VAULT_UNSEAL_KEY=$unseal_key
+VAULT_ROOT_TOKEN=$root_token
+KEYS
+    chmod 600 "$VAULT_KEYS_FILE"
+    echo "Vault initialised. Keys saved to $VAULT_KEYS_FILE"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# 3. Unseal Vault if it is currently sealed.
+# ---------------------------------------------------------------------------
+unseal_vault() {
+  if [ ! -f "$VAULT_KEYS_FILE" ]; then
+    echo "ERROR: $VAULT_KEYS_FILE not found. Cannot unseal Vault." >&2
+    exit 1
+  fi
+
+  # shellcheck source=/dev/null
+  source "$VAULT_KEYS_FILE"
+
+  local http_code
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" "$VAULT_ADDR/v1/sys/health")
+
+  if [ "$http_code" = "503" ]; then
+    echo "Vault is sealed — unsealing..."
+    vault operator unseal "$VAULT_UNSEAL_KEY"
+    echo "Vault unsealed."
+  else
+    echo "Vault is already unsealed (status $http_code)."
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# 4. Wait until Vault is fully unsealed (HTTP 200).
+# ---------------------------------------------------------------------------
+wait_for_unsealed() {
+  echo "Waiting for Vault to become active..."
+  until [ "$(curl -s -o /dev/null -w "%{http_code}" "$VAULT_ADDR/v1/sys/health")" = "200" ]; do
+    sleep 1
+  done
+  echo "Vault is active."
+}
+
+# ---------------------------------------------------------------------------
+# Main flow
+# ---------------------------------------------------------------------------
 wait_for_vault
+init_vault
+unseal_vault
+wait_for_unsealed
+
+# Load root token for subsequent vault CLI calls
+# shellcheck source=/dev/null
+source "$VAULT_KEYS_FILE"
+VAULT_TOKEN=$VAULT_ROOT_TOKEN
+export VAULT_TOKEN
+
 vault secrets enable -path=secret kv-v2 2>/dev/null || true
 
 AUTH_DB_PASS=${AUTH_DB_PASS:-$(rand)}
@@ -64,7 +151,6 @@ read API_GATEWAY_VAULT_ROLE_ID API_GATEWAY_VAULT_SECRET_ID < <(make_approle api-
 
 cat > .env <<ENV
 VAULT_ADDR=${VAULT_CONTAINER_ADDR:-http://vault:8200}
-VAULT_DEV_ROOT_TOKEN_ID=$VAULT_TOKEN
 AUTH_DB_PASS=$AUTH_DB_PASS
 LINKS_DB_PASS=$LINKS_DB_PASS
 ANALYTICS_DB_PASS=$ANALYTICS_DB_PASS
@@ -83,9 +169,11 @@ ENV
 
 echo ".env generated"
 
+# ---------------------------------------------------------------------------
 # Sync the generated passwords into the running postgres instance so that
 # Vault secrets and database credentials always match, regardless of whether
 # postgres was started before or after this script ran.
+# ---------------------------------------------------------------------------
 sync_postgres_passwords() {
   local sql
   sql="ALTER ROLE auth_user WITH LOGIN PASSWORD '$AUTH_DB_PASS';"

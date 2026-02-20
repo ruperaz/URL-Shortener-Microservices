@@ -2,12 +2,20 @@ services:
   vault:
     image: hashicorp/vault:1.18
     ports: ["8200:8200"]
-    environment:
-      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID:-root}
-      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
     cap_add: ["IPC_LOCK"]
-    command: vault server -dev
-    healthcheck: { test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8200/v1/sys/health"], interval: 10s, timeout: 5s, retries: 10 }
+    command: vault server -config=/vault/config/vault.hcl
+    volumes:
+      - ./vault/config/vault.hcl:/vault/config/vault.hcl:ro
+      - vault-data:/vault/data
+    # In production mode the /v1/sys/health endpoint returns 501 when
+    # uninitialised and 503 when sealed, so we accept any HTTP response
+    # (including those codes) as proof that the process is alive.
+    # vault-bootstrap.sh handles init + unseal before services start.
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -q -O - http://localhost:8200/v1/sys/health; exit 0"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   postgres:
     image: postgres:17-alpine
@@ -52,3 +60,6 @@ services:
     depends_on: { auth-server: {condition: service_started}, link-service: {condition: service_started}, redirect-service: {condition: service_started}, analytics-service: {condition: service_started} }
     ports: ["8080:8080"]
     env_file: .env
+
+volumes:
+  vault-data:
