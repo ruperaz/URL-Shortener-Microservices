@@ -40,21 +40,23 @@ make_policy redirect-service redirect-service
 make_policy analytics-service analytics-service
 make_policy api-gateway api-gateway
 
-make_approle() {
-  local service=$1
-  vault auth enable approle 2>/dev/null || true
-  vault write auth/approle/role/$service token_policies=$service token_ttl=1h token_max_ttl=4h >/dev/null
+vault auth enable approle 2>/dev/null || true
+
+create_approle() {
+  local service=$1 role_var=$2 secret_var=$3
   local role_id secret_id
+  vault write auth/approle/role/$service token_policies=$service token_ttl=1h token_max_ttl=4h >/dev/null
   role_id=$(vault read -field=role_id auth/approle/role/$service/role-id)
   secret_id=$(vault write -f -field=secret_id auth/approle/role/$service/secret-id)
-  echo "$role_id" "$secret_id"
+  printf -v "$role_var" '%s' "$role_id"
+  printf -v "$secret_var" '%s' "$secret_id"
 }
 
-read AUTH_SERVER_VAULT_ROLE_ID AUTH_SERVER_VAULT_SECRET_ID < <(make_approle auth-server)
-read LINK_SERVICE_VAULT_ROLE_ID LINK_SERVICE_VAULT_SECRET_ID < <(make_approle link-service)
-read REDIRECT_SERVICE_VAULT_ROLE_ID REDIRECT_SERVICE_VAULT_SECRET_ID < <(make_approle redirect-service)
-read ANALYTICS_SERVICE_VAULT_ROLE_ID ANALYTICS_SERVICE_VAULT_SECRET_ID < <(make_approle analytics-service)
-read API_GATEWAY_VAULT_ROLE_ID API_GATEWAY_VAULT_SECRET_ID < <(make_approle api-gateway)
+create_approle auth-server AUTH_SERVER_VAULT_ROLE_ID AUTH_SERVER_VAULT_SECRET_ID
+create_approle link-service LINK_SERVICE_VAULT_ROLE_ID LINK_SERVICE_VAULT_SECRET_ID
+create_approle redirect-service REDIRECT_SERVICE_VAULT_ROLE_ID REDIRECT_SERVICE_VAULT_SECRET_ID
+create_approle analytics-service ANALYTICS_SERVICE_VAULT_ROLE_ID ANALYTICS_SERVICE_VAULT_SECRET_ID
+create_approle api-gateway API_GATEWAY_VAULT_ROLE_ID API_GATEWAY_VAULT_SECRET_ID
 
 cat > .env <<ENV
 VAULT_ADDR=$VAULT_ADDR
