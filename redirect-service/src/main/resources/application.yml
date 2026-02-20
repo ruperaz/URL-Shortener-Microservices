@@ -1,0 +1,28 @@
+server.port: 8082
+spring:
+  application.name: redirect-service
+  config.import: vault://
+  cloud.vault:
+    uri: ${VAULT_ADDR:http://vault:8200}
+    authentication: APPROLE
+    app-role.role-id: ${REDIRECT_SERVICE_VAULT_ROLE_ID}
+    app-role.secret-id: ${REDIRECT_SERVICE_VAULT_SECRET_ID}
+    kv.backend: secret
+    kv.default-context: redirect-service
+  security:
+    oauth2:
+      resourceserver.jwt.issuer-uri: ${JWT_ISSUER_URI:http://auth-server:9000}
+      client:
+        registration:
+          internal-service:
+            provider: auth
+            authorization-grant-type: client_credentials
+            client-id: ${redirect.oauth.client-id}
+            client-secret: ${redirect.oauth.client-secret}
+            scope: internal
+        provider:
+          auth:
+            token-uri: http://auth-server:9000/oauth2/token
+  data.redis.host: redis
+redirect.cache.ttl-seconds: 3600
+management.endpoints.web.exposure.include: health,info

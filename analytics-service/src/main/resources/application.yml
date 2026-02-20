@@ -1,0 +1,23 @@
+server.port: 8083
+spring:
+  application.name: analytics-service
+  config.import: vault://
+  cloud.vault:
+    uri: ${VAULT_ADDR:http://vault:8200}
+    authentication: APPROLE
+    app-role.role-id: ${ANALYTICS_SERVICE_VAULT_ROLE_ID}
+    app-role.secret-id: ${ANALYTICS_SERVICE_VAULT_SECRET_ID}
+    kv.backend: secret
+    kv.default-context: analytics-service
+  datasource:
+    url: jdbc:postgresql://postgres:5432/url_shortener?currentSchema=${analytics.db.schema:analytics_schema}
+    username: ${analytics.db.username}
+    password: ${analytics.db.password}
+  jpa:
+    hibernate.ddl-auto: validate
+    properties.hibernate.default_schema: ${analytics.db.schema:analytics_schema}
+  flyway:
+    schemas: ${analytics.db.schema:analytics_schema}
+    default-schema: ${analytics.db.schema:analytics_schema}
+  security.oauth2.resourceserver.jwt.issuer-uri: ${JWT_ISSUER_URI:http://auth-server:9000}
+management.endpoints.web.exposure.include: health,info
