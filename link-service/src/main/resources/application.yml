@@ -12,8 +12,8 @@ spring:
     kv.default-context: link-service
   datasource:
     url: jdbc:postgresql://postgres:5432/url_shortener?currentSchema=${links.db.schema:links_schema}
-    username: ${links.db.username}
-    password: ${links.db.password}
+    username: ${links.db.username:${LINKS_DB_USER:links_user}}
+    password: ${links.db.password:${LINKS_DB_PASS}}
   jpa:
     hibernate.ddl-auto: validate
     properties.hibernate.default_schema: ${links.db.schema:links_schema}

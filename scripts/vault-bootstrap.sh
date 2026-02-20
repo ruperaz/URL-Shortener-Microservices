@@ -13,25 +13,29 @@ rand() { openssl rand -base64 24 | tr -d '=+/\n' | cut -c1-24; }
 wait_for_vault
 vault secrets enable -path=secret kv-v2 2>/dev/null || true
 
+AUTH_DB_USER=${AUTH_DB_USER:-auth_user}
+LINKS_DB_USER=${LINKS_DB_USER:-links_user}
+ANALYTICS_DB_USER=${ANALYTICS_DB_USER:-analytics_user}
 AUTH_DB_PASS=${AUTH_DB_PASS:-$(rand)}
 LINKS_DB_PASS=${LINKS_DB_PASS:-$(rand)}
 ANALYTICS_DB_PASS=${ANALYTICS_DB_PASS:-$(rand)}
+INTERNAL_CLIENT_ID=${INTERNAL_CLIENT_ID:-internal-service}
 INTERNAL_CLIENT_SECRET=${INTERNAL_CLIENT_SECRET:-$(rand)}
 
 openssl genpkey -algorithm RSA -out /tmp/auth-private.pem -pkeyopt rsa_keygen_bits:2048 >/dev/null 2>&1
 PRIVATE_PEM=$(cat /tmp/auth-private.pem)
 
-vault kv put secret/auth-server   auth.keys.private-pem="$PRIVATE_PEM"   auth.clients.internal-service-secret="$INTERNAL_CLIENT_SECRET"   auth.db.username=auth_user   auth.db.password="$AUTH_DB_PASS"   auth.db.schema=auth_schema
-vault kv put secret/link-service   links.db.username=links_user   links.db.password="$LINKS_DB_PASS"   links.db.schema=links_schema
-vault kv put secret/analytics-service   analytics.db.username=analytics_user   analytics.db.password="$ANALYTICS_DB_PASS"   analytics.db.schema=analytics_schema
-vault kv put secret/redirect-service   redirect.oauth.client-id=internal-service   redirect.oauth.client-secret="$INTERNAL_CLIENT_SECRET"
+vault kv put secret/auth-server   auth.keys.private-pem="$PRIVATE_PEM"   auth.clients.internal-service-secret="$INTERNAL_CLIENT_SECRET"   auth.db.username="$AUTH_DB_USER"   auth.db.password="$AUTH_DB_PASS"   auth.db.schema=auth_schema
+vault kv put secret/link-service   links.db.username="$LINKS_DB_USER"   links.db.password="$LINKS_DB_PASS"   links.db.schema=links_schema
+vault kv put secret/analytics-service   analytics.db.username="$ANALYTICS_DB_USER"   analytics.db.password="$ANALYTICS_DB_PASS"   analytics.db.schema=analytics_schema
+vault kv put secret/redirect-service   redirect.oauth.client-id="$INTERNAL_CLIENT_ID"   redirect.oauth.client-secret="$INTERNAL_CLIENT_SECRET"
 # Compatibility copies for subpath-style lookups
 vault kv put secret/auth-server/keys private-pem="$PRIVATE_PEM"
 vault kv put secret/auth-server/clients internal-service-secret="$INTERNAL_CLIENT_SECRET"
-vault kv put secret/auth-server/db username=auth_user password="$AUTH_DB_PASS" schema=auth_schema
-vault kv put secret/link-service/db username=links_user password="$LINKS_DB_PASS" schema=links_schema
-vault kv put secret/analytics-service/db username=analytics_user password="$ANALYTICS_DB_PASS" schema=analytics_schema
-vault kv put secret/redirect-service/oauth client-id=internal-service client-secret="$INTERNAL_CLIENT_SECRET"
+vault kv put secret/auth-server/db username="$AUTH_DB_USER" password="$AUTH_DB_PASS" schema=auth_schema
+vault kv put secret/link-service/db username="$LINKS_DB_USER" password="$LINKS_DB_PASS" schema=links_schema
+vault kv put secret/analytics-service/db username="$ANALYTICS_DB_USER" password="$ANALYTICS_DB_PASS" schema=analytics_schema
+vault kv put secret/redirect-service/oauth client-id="$INTERNAL_CLIENT_ID" client-secret="$INTERNAL_CLIENT_SECRET"
 
 make_policy() {
   local name=$1 path=$2
@@ -66,9 +70,13 @@ create_approle api-gateway API_GATEWAY_VAULT_ROLE_ID API_GATEWAY_VAULT_SECRET_ID
 cat > .env <<ENV
 VAULT_ADDR=http://vault:8200
 VAULT_DEV_ROOT_TOKEN_ID=$VAULT_TOKEN
+AUTH_DB_USER=$AUTH_DB_USER
+LINKS_DB_USER=$LINKS_DB_USER
+ANALYTICS_DB_USER=$ANALYTICS_DB_USER
 AUTH_DB_PASS=$AUTH_DB_PASS
 LINKS_DB_PASS=$LINKS_DB_PASS
 ANALYTICS_DB_PASS=$ANALYTICS_DB_PASS
+INTERNAL_CLIENT_ID=$INTERNAL_CLIENT_ID
 INTERNAL_CLIENT_SECRET=$INTERNAL_CLIENT_SECRET
 AUTH_SERVER_VAULT_ROLE_ID=$AUTH_SERVER_VAULT_ROLE_ID
 AUTH_SERVER_VAULT_SECRET_ID=$AUTH_SERVER_VAULT_SECRET_ID

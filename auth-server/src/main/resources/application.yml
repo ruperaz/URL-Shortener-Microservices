@@ -17,8 +17,8 @@ spring:
         default-context: auth-server
   datasource:
     url: jdbc:postgresql://postgres:5432/url_shortener?currentSchema=${auth.db.schema:auth_schema}
-    username: ${auth.db.username}
-    password: ${auth.db.password}
+    username: ${auth.db.username:${AUTH_DB_USER:auth_user}}
+    password: ${auth.db.password:${AUTH_DB_PASS}}
   jpa:
     hibernate:
       ddl-auto: validate

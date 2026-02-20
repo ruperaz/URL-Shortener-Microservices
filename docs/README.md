@@ -145,3 +145,17 @@ podman compose up -d vault postgres redis
 ./scripts/vault-bootstrap.sh
 podman compose up -d auth-server link-service analytics-service redirect-service api-gateway
 ```
+
+
+### If auth/link/analytics keep restarting
+After changing bootstrap or config mappings, regenerate `.env` and rebuild impacted services:
+```bash
+./scripts/vault-bootstrap.sh
+podman compose build --no-cache auth-server link-service analytics-service redirect-service api-gateway
+podman compose up -d auth-server link-service analytics-service redirect-service api-gateway
+```
+Then check:
+```bash
+podman compose logs --tail=120 auth-server
+podman compose logs --tail=120 link-service
+```

@@ -17,8 +17,8 @@ spring:
           internal-service:
             provider: auth
             authorization-grant-type: client_credentials
-            client-id: ${redirect.oauth.client-id}
-            client-secret: ${redirect.oauth.client-secret}
+            client-id: ${redirect.oauth.client-id:${INTERNAL_CLIENT_ID:internal-service}}
+            client-secret: ${redirect.oauth.client-secret:${INTERNAL_CLIENT_SECRET}}
             scope: internal
         provider:
           auth:

@@ -11,8 +11,8 @@ spring:
     kv.default-context: analytics-service
   datasource:
     url: jdbc:postgresql://postgres:5432/url_shortener?currentSchema=${analytics.db.schema:analytics_schema}
-    username: ${analytics.db.username}
-    password: ${analytics.db.password}
+    username: ${analytics.db.username:${ANALYTICS_DB_USER:analytics_user}}
+    password: ${analytics.db.password:${ANALYTICS_DB_PASS}}
   jpa:
     hibernate.ddl-auto: validate
     properties.hibernate.default_schema: ${analytics.db.schema:analytics_schema}
