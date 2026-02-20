@@ -14,11 +14,14 @@ spring:
       routes:
         - id: links
           uri: http://link-service:8081
-          predicates: [ Path=/api/links/** ]
-          filters: [ RewritePath=/api/links/(?<segment>.*), /${segment} ]
+          predicates:
+            - Path=/api/links/**
+          filters:
+            - 'RewritePath=/api/links/(?<segment>.*), /${segment}'
         - id: redirect
           uri: http://redirect-service:8082
-          predicates: [ Path=/r/** ]
+          predicates:
+            - Path=/r/**
           filters:
             - name: RequestRateLimiter
               args:
@@ -27,8 +30,10 @@ spring:
                 key-resolver: "#{@ipKeyResolver}"
         - id: analytics
           uri: http://analytics-service:8083
-          predicates: [ Path=/api/analytics/** ]
-          filters: [ RewritePath=/api/analytics/(?<segment>.*), /analytics/${segment} ]
+          predicates:
+            - Path=/api/analytics/**
+          filters:
+            - 'RewritePath=/api/analytics/(?<segment>.*), /analytics/${segment}'
       redis-rate-limiter:
         replenishRate: 20
         burstCapacity: 40
