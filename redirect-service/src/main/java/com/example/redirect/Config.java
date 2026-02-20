@@ -18,7 +18,7 @@ class Config {
     SecurityWebFilterChain security(ServerHttpSecurity http) {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(ex -> ex.pathMatchers("/r/**", "/actuator/**").permitAll().anyExchange().authenticated())
-                .oauth2ResourceServer(o -> o.jwt())
+                .oauth2ResourceServer(o -> o.jwt(org.springframework.security.config.Customizer.withDefaults()))
                 .build();
     }
 
