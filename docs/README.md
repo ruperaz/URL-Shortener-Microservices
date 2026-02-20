@@ -127,3 +127,20 @@ podman compose up -d
 ```
 
 
+
+
+### Podman-compose dependency graph error fix (`depends on container ... not found in input list`)
+This is a known fragility in older `podman-compose` (1.0.6) when translating `depends_on`/healthcheck wiring to `podman --requires`.
+This repo now avoids that path and uses restart policies.
+
+Use this exact recovery flow:
+```bash
+podman compose down --remove-orphans
+podman rm -f $(podman ps -aq --filter label=io.podman.compose.project=url-shortener-microservices) 2>/dev/null || true
+podman network rm url-shortener-microservices_default 2>/dev/null || true
+
+podman compose build --no-cache
+podman compose up -d vault postgres redis
+./scripts/vault-bootstrap.sh
+podman compose up -d auth-server link-service analytics-service redirect-service api-gateway
+```
