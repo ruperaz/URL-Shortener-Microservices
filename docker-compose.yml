@@ -9,15 +9,15 @@ services:
     volumes:
       - ./vault/config/vault.hcl:/vault/config/vault.hcl:ro
       - ./vault/data:/vault/data
-    # In production mode the /v1/sys/health endpoint returns 501 when
-    # uninitialised and 503 when sealed, so we accept any HTTP response
-    # (including those codes) as proof that the process is alive.
-    # vault-bootstrap.sh handles init + unseal before services start.
+    # vault status exits 0 only when Vault is initialised AND unsealed.
+    # Services that depend on vault:service_healthy will therefore wait until
+    # vault-bootstrap.sh has completed init + unseal before they start.
     healthcheck:
-      test: ["CMD", "sh", "-c", "wget -q -O - http://localhost:8200/v1/sys/health; exit 0"]
+      test: ["CMD", "vault", "status", "-address=http://localhost:8200"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 30
+      start_period: 5s
 
   postgres:
     image: postgres:17-alpine
@@ -41,25 +41,30 @@ services:
     depends_on: { vault: {condition: service_healthy}, postgres: {condition: service_healthy} }
     ports: ["9000:9000"]
     env_file: .env
+    restart: on-failure
 
   link-service:
     build: { context: ., dockerfile: link-service/Dockerfile }
     depends_on: { auth-server: {condition: service_started}, postgres: {condition: service_healthy}, vault: {condition: service_healthy} }
     env_file: .env
+    restart: on-failure
 
   analytics-service:
     build: { context: ., dockerfile: analytics-service/Dockerfile }
     depends_on: { auth-server: {condition: service_started}, postgres: {condition: service_healthy}, vault: {condition: service_healthy} }
     env_file: .env
+    restart: on-failure
 
   redirect-service:
     build: { context: ., dockerfile: redirect-service/Dockerfile }
     depends_on: { link-service: {condition: service_started}, analytics-service: {condition: service_started}, redis: {condition: service_healthy}, vault: {condition: service_healthy} }
     env_file: .env
+    restart: on-failure
 
   api-gateway:
     build: { context: ., dockerfile: api-gateway/Dockerfile }
     depends_on: { auth-server: {condition: service_started}, link-service: {condition: service_started}, redirect-service: {condition: service_started}, analytics-service: {condition: service_started} }
     ports: ["8080:8080"]
     env_file: .env
+    restart: on-failure
 
