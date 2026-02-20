@@ -3,7 +3,7 @@ WORKDIR /workspace
 COPY pom.xml ./
 COPY api-gateway/pom.xml api-gateway/pom.xml
 COPY api-gateway/src api-gateway/src
-RUN mvn -q -pl api-gateway -am -DskipTests package
+RUN mvn -q -f api-gateway/pom.xml -DskipTests package
 
 FROM docker.io/library/eclipse-temurin:21-jre
 WORKDIR /app

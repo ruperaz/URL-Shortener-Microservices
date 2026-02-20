@@ -110,7 +110,7 @@ podman compose up -d
 
 ### Fix for `Non-resolvable parent POM ... com.example:url-shortener-microservices`
 If podman-compose builds each module with only module-local context, Maven cannot see the root parent `pom.xml`.
-This repo is configured so each service build uses **repo root context** with per-service Dockerfile.
+This repo is configured so each service build uses **repo root context** with per-service Dockerfile, and each Dockerfile runs Maven with `-f <module>/pom.xml` so sibling modules are not required during image build.
 Use:
 ```bash
 podman compose build --no-cache

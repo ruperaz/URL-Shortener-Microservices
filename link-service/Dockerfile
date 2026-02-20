@@ -3,7 +3,7 @@ WORKDIR /workspace
 COPY pom.xml ./
 COPY link-service/pom.xml link-service/pom.xml
 COPY link-service/src link-service/src
-RUN mvn -q -pl link-service -am -DskipTests package
+RUN mvn -q -f link-service/pom.xml -DskipTests package
 
 FROM docker.io/library/eclipse-temurin:21-jre
 WORKDIR /app
