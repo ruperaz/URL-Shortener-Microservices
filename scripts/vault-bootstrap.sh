@@ -39,7 +39,7 @@ vault kv put secret/redirect-service/oauth client-id="$INTERNAL_CLIENT_ID" clien
 
 
 sync_postgres_passwords() {
-  local runner=""
+  local runner="" pg_container=""
   if command -v podman >/dev/null 2>&1; then
     runner="podman"
   elif command -v docker >/dev/null 2>&1; then
@@ -49,16 +49,31 @@ sync_postgres_passwords() {
     return 0
   fi
 
-  local pg_container="url-shortener-microservices_postgres_1"
+  pg_container=$($runner ps --format '{{.Names}}' --filter label=com.docker.compose.service=postgres | head -1)
+  if [ -z "$pg_container" ]; then
+    pg_container="url-shortener-microservices_postgres_1"
+  fi
   if ! "$runner" ps --format '{{.Names}}' | grep -qx "$pg_container"; then
     echo "Postgres container '$pg_container' not running; skipping role password sync"
     return 0
   fi
 
-  "$runner" exec "$pg_container" psql -U postgres -d url_shortener <<SQL >/dev/null
-ALTER ROLE auth_user WITH PASSWORD '${AUTH_DB_PASS}';
-ALTER ROLE links_user WITH PASSWORD '${LINKS_DB_PASS}';
-ALTER ROLE analytics_user WITH PASSWORD '${ANALYTICS_DB_PASS}';
+  "$runner" exec "$pg_container" psql -v ON_ERROR_STOP=1 -U postgres -d postgres <<SQL >/dev/null
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${AUTH_DB_USER}') THEN
+    CREATE ROLE ${AUTH_DB_USER} LOGIN PASSWORD '${AUTH_DB_PASS}';
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${LINKS_DB_USER}') THEN
+    CREATE ROLE ${LINKS_DB_USER} LOGIN PASSWORD '${LINKS_DB_PASS}';
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${ANALYTICS_DB_USER}') THEN
+    CREATE ROLE ${ANALYTICS_DB_USER} LOGIN PASSWORD '${ANALYTICS_DB_PASS}';
+  END IF;
+END $$;
+ALTER ROLE ${AUTH_DB_USER} WITH PASSWORD '${AUTH_DB_PASS}';
+ALTER ROLE ${LINKS_DB_USER} WITH PASSWORD '${LINKS_DB_PASS}';
+ALTER ROLE ${ANALYTICS_DB_USER} WITH PASSWORD '${ANALYTICS_DB_PASS}';
 SQL
 
   echo "Postgres role passwords synchronized with generated .env values"
@@ -67,6 +82,7 @@ SQL
 make_policy() {
   local name=$1 path=$2
   cat <<POL | vault policy write "$name" -
+path "secret/data/$path" { capabilities = ["read"] }
 path "secret/data/$path/*" { capabilities = ["read"] }
 POL
 }

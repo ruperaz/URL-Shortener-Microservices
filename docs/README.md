@@ -160,3 +160,5 @@ Then check:
 podman compose logs --tail=120 auth-server
 podman compose logs --tail=120 link-service
 ```
+
+Vault bootstrap now updates Vault policies to allow both base (`secret/data/<service>`) and nested paths (`secret/data/<service>/*`) so Spring Cloud Vault default-context reads do not return 403.
