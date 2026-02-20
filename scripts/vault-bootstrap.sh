@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
-VAULT_ADDR=${VAULT_ADDR:-http://localhost:8200}
+
+# This script runs on the HOST (e.g. WSL). Vault's port is published to the
+# host as localhost:8200, so always use that for host-side CLI calls.
+# Do NOT inherit VAULT_ADDR from the shell: it may contain the
+# container-internal hostname (http://vault:8200) which is unreachable here.
+# Override VAULT_HOST_ADDR if your Vault is on a non-default address.
+VAULT_ADDR=${VAULT_HOST_ADDR:-http://localhost:8200}
 VAULT_TOKEN=${VAULT_DEV_ROOT_TOKEN_ID:-root}
 export VAULT_ADDR VAULT_TOKEN
 
@@ -57,7 +63,7 @@ read ANALYTICS_SERVICE_VAULT_ROLE_ID ANALYTICS_SERVICE_VAULT_SECRET_ID < <(make_
 read API_GATEWAY_VAULT_ROLE_ID API_GATEWAY_VAULT_SECRET_ID < <(make_approle api-gateway)
 
 cat > .env <<ENV
-VAULT_ADDR=$VAULT_ADDR
+VAULT_ADDR=${VAULT_CONTAINER_ADDR:-http://vault:8200}
 VAULT_DEV_ROOT_TOKEN_ID=$VAULT_TOKEN
 AUTH_DB_PASS=$AUTH_DB_PASS
 LINKS_DB_PASS=$LINKS_DB_PASS
