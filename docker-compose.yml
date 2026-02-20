@@ -27,32 +27,27 @@ services:
     healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 10s, timeout: 3s, retries: 10 }
 
   auth-server:
-    image: localhost/url-shortener-auth-server:dev
     build: ./auth-server
     depends_on: { vault: {condition: service_healthy}, postgres: {condition: service_healthy} }
     ports: ["9000:9000"]
     env_file: .env
 
   link-service:
-    image: localhost/url-shortener-link-service:dev
     build: ./link-service
     depends_on: { auth-server: {condition: service_started}, postgres: {condition: service_healthy}, vault: {condition: service_healthy} }
     env_file: .env
 
   analytics-service:
-    image: localhost/url-shortener-analytics-service:dev
     build: ./analytics-service
     depends_on: { auth-server: {condition: service_started}, postgres: {condition: service_healthy}, vault: {condition: service_healthy} }
     env_file: .env
 
   redirect-service:
-    image: localhost/url-shortener-redirect-service:dev
     build: ./redirect-service
     depends_on: { link-service: {condition: service_started}, analytics-service: {condition: service_started}, redis: {condition: service_healthy}, vault: {condition: service_healthy} }
     env_file: .env
 
   api-gateway:
-    image: localhost/url-shortener-api-gateway:dev
     build: ./api-gateway
     depends_on: { auth-server: {condition: service_started}, link-service: {condition: service_started}, redirect-service: {condition: service_started}, analytics-service: {condition: service_started} }
     ports: ["8080:8080"]

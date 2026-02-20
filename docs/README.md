@@ -81,7 +81,7 @@ If you see errors like:
 - `short-name "url-shortener-microservices_api-gateway" did not resolve`
 
 Use these steps:
-1. Ensure image names are fully qualified (`docker.io/...`) and local app images are tagged with `localhost/...` (already configured in this repo).
+1. Ensure image names are fully qualified (`docker.io/...`) for external base/infra images. App service images are built from local Dockerfiles via compose `build:`.
 2. Pull base images explicitly once:
 ```bash
 podman pull docker.io/library/maven:3.9.9-eclipse-temurin-21
@@ -93,6 +93,16 @@ podman pull docker.io/library/redis:7-alpine
 3. Retry build/run:
 ```bash
 podman compose down
-podman compose up -d --build
+podman compose build
+podman compose up -d
 ```
 4. If your host still enforces strict short-name mode for other projects, configure `/etc/containers/registries.conf` with unqualified registries (for example `docker.io`) or use fully-qualified image names everywhere.
+
+
+If compose still tries to pull `localhost/...`, remove old cached compose state and retry:
+```bash
+podman compose down --remove-orphans
+podman image prune -f
+podman compose build
+podman compose up -d
+```
