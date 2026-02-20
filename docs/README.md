@@ -106,3 +106,20 @@ podman image prune -f
 podman compose build
 podman compose up -d
 ```
+
+
+### Fix for `Non-resolvable parent POM ... com.example:url-shortener-microservices`
+If podman-compose builds each module with only module-local context, Maven cannot see the root parent `pom.xml`.
+This repo is configured so each service build uses **repo root context** with per-service Dockerfile.
+Use:
+```bash
+podman compose build --no-cache
+podman compose up -d
+```
+If an old podman-compose state persists, reset and rebuild:
+```bash
+podman compose down --remove-orphans
+podman system prune -f
+podman compose build --no-cache
+podman compose up -d
+```
