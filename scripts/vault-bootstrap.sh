@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-VAULT_ADDR=${VAULT_ADDR:-http://localhost:8200}
+VAULT_ADDR_BOOTSTRAP=${VAULT_ADDR:-http://localhost:8200}
 VAULT_TOKEN=${VAULT_DEV_ROOT_TOKEN_ID:-root}
-export VAULT_ADDR VAULT_TOKEN
+export VAULT_ADDR="$VAULT_ADDR_BOOTSTRAP" VAULT_TOKEN
 
 wait_for_vault() {
   until curl -sf "$VAULT_ADDR/v1/sys/health" >/dev/null; do sleep 1; done
@@ -21,6 +21,11 @@ INTERNAL_CLIENT_SECRET=${INTERNAL_CLIENT_SECRET:-$(rand)}
 openssl genpkey -algorithm RSA -out /tmp/auth-private.pem -pkeyopt rsa_keygen_bits:2048 >/dev/null 2>&1
 PRIVATE_PEM=$(cat /tmp/auth-private.pem)
 
+vault kv put secret/auth-server   auth.keys.private-pem="$PRIVATE_PEM"   auth.clients.internal-service-secret="$INTERNAL_CLIENT_SECRET"   auth.db.username=auth_user   auth.db.password="$AUTH_DB_PASS"   auth.db.schema=auth_schema
+vault kv put secret/link-service   links.db.username=links_user   links.db.password="$LINKS_DB_PASS"   links.db.schema=links_schema
+vault kv put secret/analytics-service   analytics.db.username=analytics_user   analytics.db.password="$ANALYTICS_DB_PASS"   analytics.db.schema=analytics_schema
+vault kv put secret/redirect-service   redirect.oauth.client-id=internal-service   redirect.oauth.client-secret="$INTERNAL_CLIENT_SECRET"
+# Compatibility copies for subpath-style lookups
 vault kv put secret/auth-server/keys private-pem="$PRIVATE_PEM"
 vault kv put secret/auth-server/clients internal-service-secret="$INTERNAL_CLIENT_SECRET"
 vault kv put secret/auth-server/db username=auth_user password="$AUTH_DB_PASS" schema=auth_schema
@@ -59,7 +64,7 @@ create_approle analytics-service ANALYTICS_SERVICE_VAULT_ROLE_ID ANALYTICS_SERVI
 create_approle api-gateway API_GATEWAY_VAULT_ROLE_ID API_GATEWAY_VAULT_SECRET_ID
 
 cat > .env <<ENV
-VAULT_ADDR=$VAULT_ADDR
+VAULT_ADDR=http://vault:8200
 VAULT_DEV_ROOT_TOKEN_ID=$VAULT_TOKEN
 AUTH_DB_PASS=$AUTH_DB_PASS
 LINKS_DB_PASS=$LINKS_DB_PASS
