@@ -3,7 +3,7 @@ WORKDIR /workspace
 COPY pom.xml ./
 COPY auth-server/pom.xml auth-server/pom.xml
 COPY auth-server/src auth-server/src
-RUN mvn -q -f auth-server/pom.xml -DskipTests package
+RUN mvn -q -f auth-server/pom.xml -Dmaven.test.skip=true package
 
 FROM docker.io/library/eclipse-temurin:21-jre
 WORKDIR /app

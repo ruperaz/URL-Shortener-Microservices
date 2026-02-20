@@ -116,6 +116,8 @@ Use:
 podman compose build --no-cache
 podman compose up -d
 ```
+Note: Docker image builds use `-Dmaven.test.skip=true` in service Dockerfiles so Podman builds do not fail during test compilation in constrained/partial build contexts.
+
 If an old podman-compose state persists, reset and rebuild:
 ```bash
 podman compose down --remove-orphans
@@ -123,3 +125,5 @@ podman system prune -f
 podman compose build --no-cache
 podman compose up -d
 ```
+
+

@@ -3,7 +3,7 @@ WORKDIR /workspace
 COPY pom.xml ./
 COPY analytics-service/pom.xml analytics-service/pom.xml
 COPY analytics-service/src analytics-service/src
-RUN mvn -q -f analytics-service/pom.xml -DskipTests package
+RUN mvn -q -f analytics-service/pom.xml -Dmaven.test.skip=true package
 
 FROM docker.io/library/eclipse-temurin:21-jre
 WORKDIR /app
