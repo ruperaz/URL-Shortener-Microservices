@@ -58,8 +58,8 @@ sync_postgres_passwords() {
     return 0
   fi
 
-  "$runner" exec "$pg_container" psql -v ON_ERROR_STOP=1 -U postgres -d postgres <<SQL >/dev/null
-DO $$
+  "$runner" exec -e PGPASSWORD=postgres "$pg_container" psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d postgres <<SQL
+DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${AUTH_DB_USER}') THEN
     CREATE ROLE ${AUTH_DB_USER} LOGIN PASSWORD '${AUTH_DB_PASS}';
@@ -70,7 +70,7 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = '${ANALYTICS_DB_USER}') THEN
     CREATE ROLE ${ANALYTICS_DB_USER} LOGIN PASSWORD '${ANALYTICS_DB_PASS}';
   END IF;
-END $$;
+END \$\$;
 ALTER ROLE ${AUTH_DB_USER} WITH PASSWORD '${AUTH_DB_PASS}';
 ALTER ROLE ${LINKS_DB_USER} WITH PASSWORD '${LINKS_DB_PASS}';
 ALTER ROLE ${ANALYTICS_DB_USER} WITH PASSWORD '${ANALYTICS_DB_PASS}';
