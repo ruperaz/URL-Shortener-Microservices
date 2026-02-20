@@ -14,7 +14,7 @@ class SecurityConfig {
                         .pathMatchers("/actuator/**", "/r/**").permitAll()
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().permitAll())
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt())
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(org.springframework.security.config.Customizer.withDefaults()))
                 .build();
     }
 }
