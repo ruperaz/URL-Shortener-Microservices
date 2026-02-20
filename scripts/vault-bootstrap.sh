@@ -37,6 +37,33 @@ vault kv put secret/link-service/db username="$LINKS_DB_USER" password="$LINKS_D
 vault kv put secret/analytics-service/db username="$ANALYTICS_DB_USER" password="$ANALYTICS_DB_PASS" schema=analytics_schema
 vault kv put secret/redirect-service/oauth client-id="$INTERNAL_CLIENT_ID" client-secret="$INTERNAL_CLIENT_SECRET"
 
+
+sync_postgres_passwords() {
+  local runner=""
+  if command -v podman >/dev/null 2>&1; then
+    runner="podman"
+  elif command -v docker >/dev/null 2>&1; then
+    runner="docker"
+  else
+    echo "No podman/docker CLI found; skipping postgres role password sync"
+    return 0
+  fi
+
+  local pg_container="url-shortener-microservices_postgres_1"
+  if ! "$runner" ps --format '{{.Names}}' | grep -qx "$pg_container"; then
+    echo "Postgres container '$pg_container' not running; skipping role password sync"
+    return 0
+  fi
+
+  "$runner" exec "$pg_container" psql -U postgres -d url_shortener <<SQL >/dev/null
+ALTER ROLE auth_user WITH PASSWORD '${AUTH_DB_PASS}';
+ALTER ROLE links_user WITH PASSWORD '${LINKS_DB_PASS}';
+ALTER ROLE analytics_user WITH PASSWORD '${ANALYTICS_DB_PASS}';
+SQL
+
+  echo "Postgres role passwords synchronized with generated .env values"
+}
+
 make_policy() {
   local name=$1 path=$2
   cat <<POL | vault policy write "$name" -
@@ -60,6 +87,8 @@ create_approle() {
   printf -v "$role_var" '%s' "$role_id"
   printf -v "$secret_var" '%s' "$secret_id"
 }
+
+sync_postgres_passwords
 
 create_approle auth-server AUTH_SERVER_VAULT_ROLE_ID AUTH_SERVER_VAULT_SECRET_ID
 create_approle link-service LINK_SERVICE_VAULT_ROLE_ID LINK_SERVICE_VAULT_SECRET_ID

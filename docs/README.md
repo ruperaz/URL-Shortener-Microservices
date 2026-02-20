@@ -14,6 +14,7 @@ chmod +x scripts/vault-bootstrap.sh
 ./scripts/vault-bootstrap.sh
 ```
 This creates `.env` (local only) with DB passwords and AppRole credentials.
+If Postgres data already exists from earlier runs, `vault-bootstrap.sh` now also syncs `auth_user`, `links_user`, and `analytics_user` passwords inside the running Postgres container so regenerated `.env` credentials continue to work.
 If services show Vault connection attempts to `localhost:8200` from inside containers, rerun `./scripts/vault-bootstrap.sh` to regenerate `.env` with `VAULT_ADDR=http://vault:8200`, then restart services.
 
 ## 3) Start all services
