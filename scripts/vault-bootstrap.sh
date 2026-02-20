@@ -76,3 +76,44 @@ API_GATEWAY_VAULT_SECRET_ID=$API_GATEWAY_VAULT_SECRET_ID
 ENV
 
 echo ".env generated"
+
+# Sync the generated passwords into the running postgres instance so that
+# Vault secrets and database credentials always match, regardless of whether
+# postgres was started before or after this script ran.
+sync_postgres_passwords() {
+  local sql
+  sql="ALTER ROLE auth_user WITH LOGIN PASSWORD '$AUTH_DB_PASS';"
+  sql="$sql ALTER ROLE links_user WITH LOGIN PASSWORD '$LINKS_DB_PASS';"
+  sql="$sql ALTER ROLE analytics_user WITH LOGIN PASSWORD '$ANALYTICS_DB_PASS';"
+
+  local pg_host="${POSTGRES_HOST:-localhost}"
+  local pg_port="${POSTGRES_PORT:-5432}"
+
+  if command -v psql >/dev/null 2>&1; then
+    PGPASSWORD=postgres psql -h "$pg_host" -p "$pg_port" -U postgres -d url_shortener -c "$sql"
+    return
+  fi
+
+  # Fall back to running psql inside the postgres container.
+  local runtime container
+  if command -v podman >/dev/null 2>&1; then
+    runtime=podman
+    container=$(podman ps --filter "name=postgres" --format "{{.Names}}" | head -1)
+  elif command -v docker >/dev/null 2>&1; then
+    runtime=docker
+    container=$(docker ps --filter "name=postgres" --format "{{.Names}}" | head -1)
+  fi
+
+  if [ -n "${container:-}" ]; then
+    "$runtime" exec "$container" psql -U postgres -d url_shortener -c "$sql"
+  else
+    echo "WARNING: psql not found and no running postgres container detected." >&2
+    echo "Manually run the following against your postgres instance:" >&2
+    echo "  $sql" >&2
+    return 1
+  fi
+}
+
+echo "Syncing passwords to postgres..."
+sync_postgres_passwords
+echo "Postgres passwords synchronized"
