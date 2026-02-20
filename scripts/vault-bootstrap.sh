@@ -39,11 +39,11 @@ init_vault() {
   if [ "$http_code" = "501" ]; then
     echo "Vault is uninitialised — running vault operator init..."
     local init_out
-    init_out=$(vault operator init -key-shares=1 -key-threshold=1 -format=json)
+    init_out=$(vault operator init -key-shares=1 -key-threshold=1)
 
     local unseal_key root_token
-    unseal_key=$(printf '%s' "$init_out" | grep -o '"unseal_keys_b64":\["[^"]*"' | grep -o '[^"]*"$' | tr -d '"')
-    root_token=$(printf '%s' "$init_out" | grep -o '"root_token":"[^"]*"' | grep -o '[^"]*"$' | tr -d '"')
+    unseal_key=$(awk '/^Unseal Key 1:/ {print $NF}' <<< "$init_out")
+    root_token=$(awk '/^Initial Root Token:/ {print $NF}' <<< "$init_out")
 
     # Persist so we can unseal on every restart
     cat > "$VAULT_KEYS_FILE" <<KEYS
