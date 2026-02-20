@@ -1,3 +1,5 @@
 .env
 .vault-keys
+vault/data/*
+!vault/data/.gitkeep
 **/target/

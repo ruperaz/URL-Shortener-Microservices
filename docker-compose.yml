@@ -6,7 +6,7 @@ services:
     command: vault server -config=/vault/config/vault.hcl
     volumes:
       - ./vault/config/vault.hcl:/vault/config/vault.hcl:ro
-      - vault-data:/vault/data
+      - ./vault/data:/vault/data
     # In production mode the /v1/sys/health endpoint returns 501 when
     # uninitialised and 503 when sealed, so we accept any HTTP response
     # (including those codes) as proof that the process is alive.
@@ -61,5 +61,3 @@ services:
     ports: ["8080:8080"]
     env_file: .env
 
-volumes:
-  vault-data:
